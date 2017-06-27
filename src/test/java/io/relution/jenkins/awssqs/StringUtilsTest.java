@@ -27,7 +27,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -125,5 +124,12 @@ public class StringUtilsTest {
             final List<String> matchedBranchs = (List<String>) CollectionUtils.select(branches, new WildcardPredicate(pattern));
             Assertions.assertThat(matchedBranchs).containsExactlyInAnyOrder(fixtures.get(pattern).toArray(new String[]{}));
         }
+    }
+
+    @Test
+    public void testRegexNotSupported() {
+        String pattern = StringUtils.parseWildcard("(foo|bar)");
+        Assertions.assertThat("foo").doesNotMatch(pattern);
+        Assertions.assertThat("bar").doesNotMatch(pattern);
     }
 }

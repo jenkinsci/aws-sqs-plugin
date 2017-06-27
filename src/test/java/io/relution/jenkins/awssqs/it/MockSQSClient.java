@@ -17,10 +17,7 @@
 package io.relution.jenkins.awssqs.it;
 
 import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClient;
-import com.amazonaws.services.sqs.model.DeleteMessageBatchRequest;
-import com.amazonaws.services.sqs.model.DeleteMessageBatchResult;
 import com.amazonaws.services.sqs.model.GetQueueUrlResult;
 
 public class MockSQSClient extends AmazonSQSClient {
@@ -35,11 +32,6 @@ public class MockSQSClient extends AmazonSQSClient {
         GetQueueUrlResult result = new GetQueueUrlResult();
         result.setQueueUrl(queueUrl);
         return result;
-    }
-
-    public DeleteMessageBatchResult deleteMessageBatch(DeleteMessageBatchRequest deleteMessageBatchRequest) {
-        System.out.println(123);
-        return null;
     }
 
     public String getQueueUrl() {

@@ -26,7 +26,7 @@
 		field="queueUuid">
 		<f:select />
 	</f:entry>
-    <f:entry title="${%Subscribed branches}" field="subscribedBranches" description="ex: (blank for 'any'), development, master, *feature, feature/**">
+    <f:entry title="${%Subscribed branches}" field="subscribedBranches" description="ex: (blank for 'any', like '*'), development, master, *feature, feature/**">
         <f:textbox default="master" />
     </f:entry>
 </j:jelly>

@@ -1,6 +1,5 @@
 /*
  * Copyright 2017 Ribose Inc. <https://www.ribose.com>
- * Copyright 2016 M-Way Solutions GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,6 +86,7 @@ public final class StringUtils {
             return null;
         }
 
+        str = str.trim();
         StringBuffer regexBuilder = new StringBuffer(str.length());
         regexBuilder.append('^');
         for (int i = 0, is = str.length(); i < is; i++) {
@@ -109,8 +109,7 @@ public final class StringUtils {
                 case '(': case ')': case '[': case ']': case '$':
                 case '^': case '.': case '{': case '}': case '|':
                 case '\\':
-                    regexBuilder.append("\\");
-                    regexBuilder.append(c);
+                    regexBuilder.append("\\").append(c);
                     break;
                 default:
                     regexBuilder.append(c);

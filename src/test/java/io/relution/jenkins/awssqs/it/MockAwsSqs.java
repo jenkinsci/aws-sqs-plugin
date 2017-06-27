@@ -19,12 +19,14 @@ package io.relution.jenkins.awssqs.it;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.services.sqs.AmazonSQSClient;
+import com.amazonaws.services.sqs.model.Message;
 import io.findify.sqsmock.SQSService;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 
 public class MockAwsSqs {
@@ -40,7 +42,7 @@ public class MockAwsSqs {
 
     private MockAwsSqs() {
         try {
-            this.sqsMessageTemplate = IOUtils.toString(this.getClass().getClassLoader().getResourceAsStream("sqscc-msg.json"), StandardCharsets.UTF_8);
+            this.sqsMessageTemplate = IOUtils.toString(this.getClass().getClassLoader().getResourceAsStream("sqscc-msg.json.tpl"), StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new IllegalStateException("Port " + this.port + " might not available", e);
         }
@@ -95,8 +97,23 @@ public class MockAwsSqs {
         }
     }
 
-    public void send(final String ref) {
-        this.sqsClient.sendMessage(this.sqsUrl, randomSqsMessageString(ref));
+
+    public void clearMessages() {
+        List<Message> messages = this.sqsClient.receiveMessage(this.sqsUrl).getMessages();
+        for (Message message : messages) {
+            this.sqsClient.deleteMessage(this.sqsUrl, message.getReceiptHandle());
+        }
+    }
+
+    public void clearAndSend(final String... refs) {
+        clearMessages();
+        this.send(refs);
+    }
+
+    public void send(final String... refs) {
+        for (String ref : refs) {
+            this.sqsClient.sendMessage(this.sqsUrl, randomSqsMessageString(ref));
+        }
     }
 
     public int getPort() {

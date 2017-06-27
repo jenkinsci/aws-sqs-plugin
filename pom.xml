@@ -9,7 +9,6 @@
         <version>2.3</version>
         <relativePath />
     </parent>
-
     <groupId>io.relution.jenkins</groupId>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/AWS+SQS+Plugin</url>
     <artifactId>aws-sqs</artifactId>

@@ -29,11 +29,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.TestBuilder;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,17 +44,86 @@ import java.util.UUID;
  *
  * https://wiki.jenkins-ci.org/display/JENKINS/Unit+Test#UnitTest-Overview
  * */
+@RunWith(Parameterized.class)
 public class JenkinsIT {
+
+    @Parameterized.Parameters
+    public static List<ProjectFixture> fixtures() {
+        return Arrays.asList(
+            new ProjectFixture()//without wildcard
+                .setSendBranches("refs/heads/foo")
+                .setListenBranches("foo")
+                .setShouldStarted(Boolean.TRUE),
+
+            new ProjectFixture()//prefix wildcard
+                .setSendBranches("refs/heads/foo-bar", "refs/heads/bar/foo", "refs/heads/foo/bar")
+                .setListenBranches("*foo")
+                .setShouldStarted(Boolean.FALSE),
+
+            new ProjectFixture()//prefix wildcard
+                .setSendBranches("refs/heads/bar/foo", "refs/heads/bar-foo")
+                .setListenBranches("*foo")
+                .setShouldStarted(Boolean.TRUE),//triggered because of msg "refs/heads/bar-foo"
+
+            new ProjectFixture()//suffix wildcard
+                .setSendBranches("refs/heads/foo/bar", "refs/heads/bar/foo", "refs/heads/bar-foo")
+                .setListenBranches("foo*")
+                .setShouldStarted(Boolean.FALSE),
+
+            new ProjectFixture()//suffix wildcard
+                .setSendBranches("refs/heads/bar/foo", "refs/heads/foo-bar")
+                .setListenBranches("foo*")
+                .setShouldStarted(Boolean.TRUE),//triggered because of msg "refs/heads/foo-bar"
+
+            new ProjectFixture()// "*"
+                .setSendBranches("refs/heads/foo/bar", "refs/heads/bar/foo", "refs/heads/bar/foo")
+                .setListenBranches("*")
+                .setShouldStarted(Boolean.FALSE),
+
+            new ProjectFixture()// "*"
+                .setSendBranches("refs/heads/foo", "refs/heads/foo-bar")
+                .setListenBranches("*")
+                .setShouldStarted(Boolean.TRUE),
+
+            new ProjectFixture()// "**"
+                .setSendBranches("refs/heads/foo/bar", "refs/heads/bar/foo", "refs/heads/bar/foo", "refs/heads/foo", "refs/heads/foo-bar")
+                .setListenBranches("**")
+                .setShouldStarted(Boolean.TRUE),
+
+            new ProjectFixture()// "**"
+                .setSendBranches("refs/heads/bar/foo", "refs/heads/bar/foo", "refs/heads/bar/foo-bar", "refs/heads/bar/foo/bar")
+                .setListenBranches("foo**")
+                .setShouldStarted(Boolean.FALSE),
+
+            new ProjectFixture()// "**"
+                .setSendBranches("refs/heads/foo/bar", "refs/heads/foo-bar")
+                .setListenBranches("foo**")
+                .setShouldStarted(Boolean.TRUE)
+        );
+    }
+
+    private static final Long TIMEOUT = 36_000L;//in milliseconds, e.g: 300_000 ~ 5 mins
 
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
-
+    private final ProjectFixture projectFixture;
     private MockAwsSqs mockAwsSqs;
+    private SQSTriggerQueue sqsQueueConfig;
 
-    private static final Long TIMEOUT = 1_000L;//in milliseconds, e.g: 30_000 ~ 5 mins
+    public JenkinsIT(ProjectFixture projectFixture) {
+        this.projectFixture = projectFixture;
+    }
+
+    @Test
+    public void shouldPassProjectFixture() throws Exception {
+        this.mockAwsSqs.send(this.projectFixture.getSendBranches());
+        OneShotEvent buildStarted = createFreestyleProject(this.projectFixture.getListenBranches());
+        buildStarted.block(TIMEOUT);
+        Assertions.assertThat(buildStarted.isSignaled()).isEqualTo(this.projectFixture.getShouldStarted());
+    }
 
     @Before
-    public void before() throws Exception {//https://sqs.us-west-2.amazonaws.com/239062223385/testjenkinssqs
+    public void before() throws Exception {
         this.mockAwsSqs = MockAwsSqs.get();
 
         //TODO refactor not to use func HtmlForm.submit
@@ -60,12 +131,8 @@ public class JenkinsIT {
         configForm.getInputByName("_.nameOrUrl").setValueAttribute(this.mockAwsSqs.getSqsUrl());
         jenkinsRule.submit(configForm);
 
-        initQueue();
-    }
-
-    private void initQueue() {
-        SQSTriggerQueue queue = SQSTrigger.DescriptorImpl.get().getSqsQueues().get(0);
-        queue.setFactory(new MockSQSFactory());
+        this.sqsQueueConfig = SQSTrigger.DescriptorImpl.get().getSqsQueues().get(0);
+        this.sqsQueueConfig.setFactory(new MockSQSFactory());
     }
 
     @After
@@ -73,84 +140,25 @@ public class JenkinsIT {
         this.mockAwsSqs.shutdown();
     }
 
-    private void createFreestyleProject(List<OneShotEvent> eventStorage, String branches) throws IOException {
-        final FreeStyleProject masterProject = jenkinsRule.createFreeStyleProject(UUID.randomUUID().toString());
+    private OneShotEvent createFreestyleProject(String listenBranches) throws IOException {
+        final FreeStyleProject project = jenkinsRule.createFreeStyleProject(UUID.randomUUID().toString());
 
-        SQSTriggerQueue queue = SQSTrigger.DescriptorImpl.get().getSqsQueues().get(0);
-
-        final String uuid = queue.getUuid();
-        final SQSTrigger trigger = new SQSTrigger(uuid, branches);
-        masterProject.addTrigger(trigger);
+        final String uuid = this.sqsQueueConfig.getUuid();
+        final SQSTrigger trigger = new SQSTrigger(uuid, listenBranches);
+        project.addTrigger(trigger);
 
         final OneShotEvent buildStarted = new OneShotEvent();
-        masterProject.getBuildersList().add(new TestBuilder() {
+        project.getBuildersList().add(new TestBuilder() {
 
             @Override
             public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
                 buildStarted.signal();
+                trigger.stop();
                 return true;
             }
         });
 
-        trigger.start(masterProject, false);
-
-        eventStorage.add(buildStarted);
-    }
-
-    private void createRandomFreestyleProjects(List<OneShotEvent> eventStorage, int nop) throws IOException {// number of projects should be created
-        for (int i = 0; i < nop; i++) {
-            createFreestyleProject(eventStorage, UUID.randomUUID().toString());
-        }
-    }
-
-    private void listenEvents(List<OneShotEvent> eventStorage) {
-        for (OneShotEvent event : eventStorage) {
-            try {
-                event.block(TIMEOUT);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    @Test
-    public void shouldTriggerOnBranchWithoutWildcard() throws Exception {
-        int nop = 10;
-
-        this.mockAwsSqs.sendRandom(nop - 1);
-        this.mockAwsSqs.send("master");
-
-        List<OneShotEvent> eventStorage = new ArrayList<>();
-        createFreestyleProject(eventStorage, "master");
-        createRandomFreestyleProjects(eventStorage, nop);
-
-        listenEvents(eventStorage);
-
-        final OneShotEvent branchFoo = eventStorage.get(0);
-        Assertions.assertThat(branchFoo.isSignaled()).isTrue();
-
-        for (int i = 1; i < nop; i++) {
-            Assertions.assertThat(eventStorage.get(i).isSignaled()).isFalse();
-        }
-    }
-
-    @Test
-    public void shouldTriggerOnBranchWithPrefixWildcard() throws Exception {
-        //TODO implementing
-    }
-
-    @Test
-    public void shouldTriggerOnBranchWithSuffixWildcard() throws Exception {
-        //TODO implementing
-    }
-
-    @Test
-    public void shouldTriggerOnAllBranches() throws Exception {
-        //TODO implementing
-    }
-
-    @Test
-    public void shouldTriggerOnRegexBranch() throws Exception {
-        //TODO implementing
+        trigger.start(project, false);
+        return buildStarted;
     }
 }
