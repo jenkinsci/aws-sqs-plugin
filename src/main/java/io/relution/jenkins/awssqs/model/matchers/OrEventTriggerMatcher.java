@@ -1,6 +1,5 @@
 /*
  * Copyright 2017 Ribose Inc. <https://www.ribose.com>
- * Copyright 2016 M-Way Solutions GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,26 +14,34 @@
  * limitations under the License.
  */
 
-package io.relution.jenkins.awssqs.model;
+package io.relution.jenkins.awssqs.model.matchers;
 
 import hudson.model.AbstractProject;
 import io.relution.jenkins.awssqs.interfaces.Event;
 import io.relution.jenkins.awssqs.interfaces.EventTriggerMatcher;
-import io.relution.jenkins.awssqs.model.matchers.AndEventTriggerMatcher;
-import io.relution.jenkins.awssqs.model.matchers.SubscribeBranchEventTriggerMatcher;
+import io.relution.jenkins.awssqs.logging.Log;
 
 import java.util.List;
 
-public class EventTriggerMatcherImpl implements EventTriggerMatcher {
+public class OrEventTriggerMatcher extends AbstractEventTriggerMatcher {
 
-    private final EventTriggerMatcher delegate;
+    public OrEventTriggerMatcher(EventTriggerMatcher... matchers) {
+        super(matchers);
+    }
 
-    public EventTriggerMatcherImpl() {
-        this.delegate = new AndEventTriggerMatcher(new SubscribeBranchEventTriggerMatcher());
+    public OrEventTriggerMatcher(List<EventTriggerMatcher> matchers) {
+        super(matchers);
     }
 
     @Override
     public boolean matches(List<Event> events, AbstractProject<?, ?> job) {
-        return this.delegate.matches(events, job);
+        for (EventTriggerMatcher matcher : matchers) {
+            Log.info("Job '%s': test if any event match by matcher '%s'...", job.getName(), matcher.getClass().getSimpleName());
+            if (matcher.matches(events, job)) {
+                return true;
+            }
+        }
+        Log.info("Job '%s': event(s) not match all matchers defined in '%s'.", job.getName(), this.getClass().getSimpleName());
+        return false;
     }
 }

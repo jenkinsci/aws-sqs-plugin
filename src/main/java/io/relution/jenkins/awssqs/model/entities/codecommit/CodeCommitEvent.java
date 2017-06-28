@@ -1,4 +1,5 @@
 /*
+ * Copyright 2017 Ribose Inc. <https://www.ribose.com>
  * Copyright 2016 M-Way Solutions GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +17,9 @@
 
 package io.relution.jenkins.awssqs.model.entities.codecommit;
 
+import io.relution.jenkins.awssqs.interfaces.Event;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.transport.URIish;
-
-import io.relution.jenkins.awssqs.interfaces.Event;
 
 
 public class CodeCommitEvent implements Event {
@@ -40,7 +40,11 @@ public class CodeCommitEvent implements Event {
         this.path = String.format(PATH, tokens[5]);
 
         final String name = reference.getName();
-        this.branch = StringUtils.stripStart(name, "refs/");
+        this.branch = name
+            .replaceFirst("refs/heads/", "")
+            .replaceFirst("refs/remotes/", "")
+            .replaceFirst("remotes/", "")
+            .replaceFirst("refs/tags/", "");
     }
 
     @Override

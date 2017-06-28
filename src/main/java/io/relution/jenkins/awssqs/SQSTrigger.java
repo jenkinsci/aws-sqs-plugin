@@ -1,4 +1,5 @@
 /*
+ * Copyright 2017 Ribose Inc. <https://www.ribose.com>
  * Copyright 2016 M-Way Solutions GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,20 +26,14 @@ import hudson.Util;
 import hudson.console.AnnotatedLargeText;
 import hudson.model.AbstractProject;
 import hudson.model.Action;
-import hudson.model.Cause;
 import hudson.model.Item;
-import hudson.model.ParametersAction;
-import hudson.model.StringParameterValue;
 import hudson.triggers.Trigger;
 import hudson.triggers.TriggerDescriptor;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.SequentialExecutionQueue;
 import io.relution.jenkins.awssqs.i18n.sqstrigger.Messages;
-import io.relution.jenkins.awssqs.interfaces.EventTriggerMatcher;
-import io.relution.jenkins.awssqs.interfaces.MessageParserFactory;
-import io.relution.jenkins.awssqs.interfaces.SQSQueue;
-import io.relution.jenkins.awssqs.interfaces.SQSQueueMonitorScheduler;
+import io.relution.jenkins.awssqs.interfaces.*;
 import io.relution.jenkins.awssqs.logging.Log;
 import io.relution.jenkins.awssqs.model.events.ConfigurationChangedEvent;
 import io.relution.jenkins.awssqs.model.events.EventBroker;
@@ -49,22 +44,19 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
 public class SQSTrigger extends Trigger<AbstractProject<?, ?>> implements io.relution.jenkins.awssqs.interfaces.SQSQueueListener, Runnable {
-
     private final String queueUuid;
+    private final String subscribedBranches;
 
     private transient SQSQueueMonitorScheduler scheduler;
 
@@ -72,10 +64,12 @@ public class SQSTrigger extends Trigger<AbstractProject<?, ?>> implements io.rel
     private transient EventTriggerMatcher eventTriggerMatcher;
 
     private transient ExecutorService executor;
+    private transient Queue<Message> upcomingMessagesQueue;
 
     @DataBoundConstructor
-    public SQSTrigger(final String queueUuid) {
+    public SQSTrigger(final String queueUuid, final String subscribedBranches) {
         this.queueUuid = queueUuid;
+        this.subscribedBranches = subscribedBranches;
     }
 
     public File getLogFile() {
@@ -139,6 +133,11 @@ public class SQSTrigger extends Trigger<AbstractProject<?, ?>> implements io.rel
         return this.queueUuid;
     }
 
+    @Override
+    public String getSubscribedBranches() {
+        return this.subscribedBranches;
+    }
+
     @Inject
     public void setScheduler(final SQSQueueMonitorScheduler scheduler) {
         this.scheduler = scheduler;
@@ -178,6 +177,9 @@ public class SQSTrigger extends Trigger<AbstractProject<?, ?>> implements io.rel
     @Inject
     public void setExecutorService(final ExecutorService executor) {
         this.executor = executor;
+
+        // init associated queue and list used to process message
+        this.upcomingMessagesQueue = new ConcurrentLinkedQueue<>();
     }
 
     public ExecutorService getExecutorService() {
@@ -188,67 +190,32 @@ public class SQSTrigger extends Trigger<AbstractProject<?, ?>> implements io.rel
     }
 
     private void handleMessage(final Message message) {
-        Log.info("Message received...");
-        Map<String, String> jobParams = new HashMap<>();
-
-        // add job parameters from the message (N.B. won't work post Jenkins v2+) @see https://wiki.jenkins-ci.org/display/JENKINS/Plugins+affected+by+fix+for+SECURITY-170
-        for (Map.Entry<String, String> att : message.getAttributes().entrySet()) {
-            if (StringUtils.isNotBlank(att.getKey())) {
-                jobParams.put("sqs_" + att.getKey(), att.getValue());
+        Log.info("Message '%s' received...", message.getMessageId());
+        final MessageParser parser = this.messageParserFactory.createParser(message);
+        final EventTriggerMatcher matcher = this.getEventTriggerMatcher();
+        final List<Event> events = parser.parseMessage(message);
+        if (matcher.matches(events, this.job)) {
+            Log.info("Event matched, executing job '%s'", this.job.getName());
+            if (this.upcomingMessagesQueue.add(message)) {
+                Log.info("Job is being in queue?: %s",this.job.isInQueue());
+                this.execute();
             }
         }
-        jobParams.put("sqs_body", message.getBody());
-        jobParams.put("sqs_messageId", message.getMessageId());
-        jobParams.put("sqs_receiptHandle", message.getReceiptHandle());
-        jobParams.put("sqs_bodyMD5", message.getMD5OfBody());
-        startJob(jobParams);
-
-//        final MessageParser parser = this.messageParserFactory.createParser(message);
-//        final EventTriggerMatcher matcher = this.getEventTriggerMatcher();
-//        final List<ExecuteJenkinsJobEvent> events = parser.parseMessage(message);
-//
-//        if (matcher.matches(events, this.job)) {
-//            this.execute();
-//        }else{
-//            Log.info("Executing handleMessage when no event is matched");
-//            this.execute();
-//        }
     }
 
-    private void startJob(Map<String, String> jobParameters) {
-        // initialise parameters...
-        List<StringParameterValue> params = new ArrayList<>();
-        for (Map.Entry<String, String> param : jobParameters.entrySet()) {
-            params.add(new StringParameterValue(param.getKey(), param.getValue()));
+    private void execute() {
+        if (this.job == null) {
+            Log.severe("Unexpected error Job is Null");
+            return;
         }
 
-        // setup default cause...
-        Cause cause = new Cause.RemoteCause("NOT_SET", "Job triggered by AWS SQS Message");
-
-        // attempt to build cause from descriptor...
-        TriggerDescriptor descriptor = this.getDescriptor();
-        if (descriptor instanceof DescriptorImpl) {
-            DescriptorImpl impl = (DescriptorImpl) descriptor;
-            List<io.relution.jenkins.awssqs.SQSTriggerQueue> queues = impl.getSqsQueues();
-            if (!queues.isEmpty()) {
-                cause = new Cause.RemoteCause(queues.get(0).getUrl(), "Job triggered by AWS SQS Message");
-            }
-        }
-
-        StringParameterValue[] parameters = params.toArray(new StringParameterValue[params.size()]);
-        Log.info("Triggering job with %s parameters...", parameters.length);
-        if (job == null) {
-            Log.severe("Unexpected error, 'job' object was null!");
-        } else {
-            job.scheduleBuild(0, cause, new ParametersAction(parameters));
-        }
-        Log.info("Triggering job [COMPLETED]");
+        Log.info("SQS event triggered build of %s", this.job.getFullDisplayName());
+        this.executor.execute(this);
     }
 
-//    private void execute() {
-//        Log.info("SQS event triggered build of %s", this.job.getFullDisplayName());
-//        this.executor.execute(this);
-//    }
+    public Queue<Message> getUpcomingMessagesQueue() {
+        return upcomingMessagesQueue;
+    }
 
     public final class SQSTriggerPollingAction implements Action {
 
@@ -289,7 +256,7 @@ public class SQSTrigger extends Trigger<AbstractProject<?, ?>> implements io.rel
     @Extension
     public static final class DescriptorImpl extends TriggerDescriptor {
 
-        private static final String KEY_SQS_QUEUES = "sqsQueues";
+        public static final String KEY_SQS_QUEUES = "sqsQueues";
         private volatile List<io.relution.jenkins.awssqs.SQSTriggerQueue> sqsQueues;
 
         private volatile transient Map<String, io.relution.jenkins.awssqs.SQSTriggerQueue> sqsQueueMap;
@@ -349,6 +316,13 @@ public class SQSTrigger extends Trigger<AbstractProject<?, ?>> implements io.rel
                 return FormValidation.error(Messages.errorQueueUuidUnknown());
             }
 
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckSubscribedBranches(@QueryParameter String subscribedBranches) {
+            if (subscribedBranches == null || subscribedBranches.trim().length() == 0) {
+                return FormValidation.warning(Messages.warningSubscribedBranches());
+            }
             return FormValidation.ok();
         }
 

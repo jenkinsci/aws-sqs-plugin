@@ -18,3 +18,5 @@ buildNumber.properties
 *.iml
 *.ipr
 *.iws
+
+.me/

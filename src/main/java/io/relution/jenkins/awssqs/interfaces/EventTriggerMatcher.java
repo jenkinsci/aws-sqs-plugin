@@ -1,4 +1,5 @@
 /*
+ * Copyright 2017 Ribose Inc. <https://www.ribose.com>
  * Copyright 2016 M-Way Solutions GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,6 @@
 package io.relution.jenkins.awssqs.interfaces;
 
 import hudson.model.AbstractProject;
-import io.relution.jenkins.awssqs.model.entities.codecommit.ExecuteJenkinsJobEvent;
 
 import java.util.List;
 
@@ -35,5 +35,10 @@ public interface EventTriggerMatcher {
      * @return {@code true} if any of the specified events matches the specified job; otherwise,
      * {@code false}.
      */
-    boolean matches(List<ExecuteJenkinsJobEvent> events, AbstractProject<?, ?> job);
+    boolean matches(List<Event> events, AbstractProject<?, ?> job);
+
+    /**
+     * @see io.relution.jenkins.awssqs.model.entities.codecommit.ExecuteJenkinsJobEvent
+     **/
+//  boolean matches(List<ExecuteJenkinsJobEvent> events, AbstractProject<?, ?> job);
 }

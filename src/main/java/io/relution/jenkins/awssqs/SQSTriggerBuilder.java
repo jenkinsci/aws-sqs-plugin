@@ -1,4 +1,5 @@
 /*
+ * Copyright 2017 Ribose Inc. <https://www.ribose.com>
  * Copyright 2016 M-Way Solutions GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,24 +17,27 @@
 
 package io.relution.jenkins.awssqs;
 
+import com.amazonaws.services.sqs.model.Message;
+import hudson.Util;
+import hudson.model.AbstractProject;
+import hudson.model.Cause;
+import hudson.scm.NullSCM;
+import hudson.util.StreamTaskListener;
+import io.relution.jenkins.awssqs.logging.Log;
+import io.relution.jenkins.awssqs.util.StringUtils;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.text.DateFormat;
 import java.util.Date;
 
-import hudson.Util;
-import hudson.model.AbstractProject;
-import hudson.model.Cause;
-import hudson.util.StreamTaskListener;
-
 
 public class SQSTriggerBuilder implements Runnable {
 
-    private final SQSTrigger            trigger;
+    private final SQSTrigger trigger;
     private final AbstractProject<?, ?> job;
-
-    private final DateFormat            formatter = DateFormat.getDateTimeInstance();
+    private final DateFormat formatter = DateFormat.getDateTimeInstance();
 
     public SQSTriggerBuilder(final SQSTrigger trigger, final AbstractProject<?, ?> job) {
         this.trigger = trigger;
@@ -42,14 +46,17 @@ public class SQSTriggerBuilder implements Runnable {
 
     @Override
     public void run() {
+        if (this.job == null) {
+            Log.severe("Unexpected error, 'job' object was null!");
+            return;
+        }
+
         final File log = this.trigger.getLogFile();
 
         try (final StreamTaskListener listener = new StreamTaskListener(log)) {
             this.buildIfChanged(listener);
-
         } catch (final IOException e) {
             io.relution.jenkins.awssqs.logging.Log.severe(e, "Failed to record SCM polling");
-
         }
     }
 
@@ -58,26 +65,51 @@ public class SQSTriggerBuilder implements Runnable {
         final long now = System.currentTimeMillis();
 
         logger.format("Started on %s", this.toDateTime(now));
-        final boolean hasChanges = this.job.poll(listener).hasChanges();
-        logger.println("Done. Took " + this.toTimeSpan(now));
 
-        if (!hasChanges) {
-            logger.println("No changes");
-        } else {
+        final boolean hasChanges = this.job.getScm().getClass().isAssignableFrom(NullSCM.class) // always trigger Job if NoSCM found
+            || this.job.poll(listener).hasChanges();
+
+        if (hasChanges) {
             logger.println("Changes found");
             this.build(logger, now);
+        } else {
+            logger.println("No changes");
+            Log.info("Ignore the build since no changes found for job SCM '%s'", job.getName());
         }
+
+        logger.println("Done. Took " + this.toTimeSpan(now));
     }
 
     private void build(final PrintStream logger, final long now) {
-        final String note = "SQS poll initiated on " + this.toDateTime(now);
-        final Cause cause = new Cause.RemoteCause("SQS trigger", note);
+        Message message = this.trigger.getUpcomingMessagesQueue().poll();
+        if (message == null) {
+            Log.severe("Unexpected error, 'message' object unable taken from queue!");
+            return;
+        }
 
-        if (this.job.scheduleBuild(cause)) {
+        String messageId = StringUtils.findByUniqueJsonKey(message.getBody(), "MessageId");
+        this.startJob(logger, messageId, now);
+    }
+
+    private void startJob(final PrintStream logger, String messageId, final long now) {
+        String triggerMsg = String.format("Triggering Job for SQS Message [%s] on [%s]", messageId, this.toDateTime(now));
+        Log.warning(triggerMsg);
+
+        // setup default cause...
+        Cause cause = new Cause.RemoteCause("SQS trigger", triggerMsg);
+
+        logger.println(triggerMsg);
+
+        //sometime a Job can be represent for 1+ SQS messages, @see https://jenkins.io/blog/2010/08/11/quiet-period-feature/
+        if (job.scheduleBuild(cause)) {
             logger.println("Job queued");
         } else {
             logger.println("Job NOT queued - it was determined that this job has been queued already.");
         }
+
+        Log.info("Job '%s' is queued? or is building?: %s , %s", job.getName(), job.isInQueue(), job.isBuilding());
+
+        logger.println("Triggering job [COMPLETED]");
     }
 
     private String toDateTime(final long timestamp) {

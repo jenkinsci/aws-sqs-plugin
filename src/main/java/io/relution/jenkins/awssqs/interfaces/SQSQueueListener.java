@@ -1,4 +1,5 @@
 /*
+ * Copyright 2017 Ribose Inc. <https://www.ribose.com>
  * Copyright 2016 M-Way Solutions GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,6 +34,12 @@ public interface SQSQueueListener {
      * @return The unique identifier of the {@link SQSQueue} this listener is associated with.
      */
     String getQueueUuid();
+
+    /**
+     * The subscribed branches this listener is associated with.
+     * @return The subscribed branches this listener is associated with.
+     */
+    String getSubscribedBranches();
 
     /**
      * The method to be invoked when new messages arrive in the SQS queue this listener is

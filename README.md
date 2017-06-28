@@ -1,9 +1,15 @@
-#AWS SQS Plugin for Jenkins
-A Jenkins plugin that allows to uses Events sent to Amazon Simple Queue Service (SQS) as a build trigger.
+# AWS SQS Plugin for Jenkins
+A Jenkins plugin that allows to uses Events from Amazon CodeCommit Repo sent to Amazon Simple Queue Service (SQS) as a build trigger but it not check out the Repo.
+
+Bellow are general steps to config your Amazon Services:
+
+1. Create your CodeCommit Repo
+2. Open the Repo, create your Triggers that will connect to a webhook through Amazon Simple Notification Service (SNS)
+3. Create SNS Topic that has Subscription on your SQS queue
+4. Open your SQS queue, do action to subscript your Queue to SNS Topic
+5. Make sure the AMZ Credential used for this Plugin has Permission to read/delete message from you SQS Queue.
 
 To use this plugin you will need to have the following:
-
-## N.B. This readme is currently out of date
 
 1. An Amazon Web Services (AWS) account
 2. A Git repository that is hosted on CodeCommit
@@ -11,7 +17,7 @@ To use this plugin you will need to have the following:
 4. A Simple Queue Service (SQS) queue
 5. A user that is allowed to access the queue
 
-#Table of contents
+# Table of contents
 1. [Using the plugin](#using-the-plugin)
     1. [Install the plugin](#install-the-plugin-on-jenkins)
     2. [Set up AWS users](#create-a-jenkins-user-on-aws)
@@ -22,16 +28,16 @@ To use this plugin you will need to have the following:
     7. [Link SNS topic and SQS queue](#link-sns-topic-and-sqs-queue)
     8. [Link AWS CodeCommit and SNS topic](#link-aws-codecommit-and-sns-topic)
     9. [Configure Jenkins jobs](#configure-jobs-to-use-the-queue-on-jenkins)
-    10. [Test your setup](#test-your-setup)
+    10.[Test your setup](#test-your-setup)
 2. [Development](#development)
 3. [License](#license)
 4. [Maintainer](#maintainers)
 
-##Using the plugin
+### Using the plugin
 
 This setup assumes that you already have an AWS account and that you're able to log in to your AWS account. You must also be able to manage users and groups and you must be able to create a CodeCommit repository, an SNS topic and an SQS queue. If you don't have the necessary permissions find someone who does.
 
-###Install the plugin on Jenkins
+### Install the plugin on Jenkins
 
 1. Go to `Jenkins > Manage Jenkins > Manage Plugins`.
 2. Go to `Available` and search for `aws-sqs` or `aws sqs`.
@@ -43,19 +49,16 @@ After you've successfully installed the plugin you should see a new entry in you
 
 ![Empty Jenkins configuration](doc/images/plugin-queue-configuration-empty.png)
 
-###Create a Jenkins user on AWS
+### Create a Jenkins user on AWS
+[IAM Help](http://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html?icmpid=docs_iam_console)
 
 1. Log in to your [Amazon Web Services](https://aws.amazon.com/) account.
-2. Go to `Services > Security & Identity > IAM`
+2. Open IAM Dashboard
 3. **Create** a **new group** called *Jenkins*
 4. Assign the following managed policies to the user:
 
-    * AmazonSQSFullAccess
-    * AWSCodeCommitReadOnly
-
+    * `AmazonSQSFullAccess`<br/>
     The `AmazonSQSFullAccess` policy is required for Jenkins to be able to read messages from queues and to delete messages from queues once they've been processed.
-
-    The `AWSCodeCommitReadOnly` permission is required for Jenkins to be able to check out code to build.
 
 5. **Create** a **new user** called *Jenkins*
 6. Assign the *Jenkins* user to the *Jenkins* group
@@ -64,13 +67,15 @@ After you've successfully installed the plugin you should see a new entry in you
 
     **Important:** You will need the `Access Key ID` and `Secret Key` for Jenkins to be able to access the SQS queue. Make sure to save both values in a secure place.
 
-###Create a CodeCommit repository
+### Configuration for CodeCommit repository
+
+[CodeCommit Help](http://docs.aws.amazon.com/codecommit/latest/userguide/welcome.html?icmpid=docs_acc_console)
 
 Before you start to configure the plugin you should have at least one Git repository on CodeCommit. If you do not already have a repository follow the steps below to create one.
 
 **Note:** At the time of writing CodeCommit is only available in the [**US East (N. Virginia)** region](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/). AWS will automatically switch to that region when you access CodeCommit. All services (CodeCommit, SNS, SQS) must be created in the same region, so do not switch regions after you've created the repository.
 
-1. Go to `Services > Developer Tools > CodeCommit`
+1. Open CodeCommit Dashboard
 
 2. **Create** a **new repository**
 
@@ -78,7 +83,7 @@ Before you start to configure the plugin you should have at least one Git reposi
 
 At the very least you'll need to enter a new name for the repository. For this plugin we would use something like *aws-sqs-plugin*. To be able to work with repositories your user account also needs permission to access CodeCommit:
 
-1. Go to `Services > Security & Identity > IAM`
+1. Go to `IAM Dashboard`
 
 2. Find and open your user account
 
@@ -100,11 +105,11 @@ In addition to the policy your account also needs a public SSH key assigned. Acc
 
 You should now be able to clone the repository and start working with it. The repository URL for our example would be *ssh://`ssh-key-id`@git-codecommit.us-east-1.amazonaws.com/v1/repos/aws_sqs_plugin*
 
-###Create an SQS queue on AWS
+###  Create an SQS queue on AWS
 
 **Note:** The SQS queue must be created in the same region as your CodeCommit repository. At the time of writing CodeCommit is only available in the **US East (N. Virginia)** region. This means the SQS queue must also be created in the US East region.
 
-1. Go to `Services > Application Services > SQS`
+1. Go to SQS Dashboard
 
 2. **Create** a **new queue**
 
@@ -114,7 +119,7 @@ You should now be able to clone the repository and start working with it. The re
 
 3. Copy the *ARN* of the queue for later
 
-###Test whether Jenkins can access the queue
+### Test whether Jenkins can access the queue
 
 1. Go to `Jenkins > Manage Jenkins > Configure System` on your Jenkins
 
@@ -132,11 +137,11 @@ You should see a success message as in the screenshot below. If you get an error
 
 ![Jenkins configuration test](doc/images/plugin-queue-configuration-success.png)
 
-###Create an SNS topic on AWS
+### Create an SNS topic on AWS
 
 **Note:** The SNS topic must be created in the same region as your CodeCommit repository. At the time of writing CodeCommit is only available in the **US East (N. Virginia)** region. This means the SNS topic must also be created in the US East region.
 
-1. Go to `Services > Mobile Services > SNS`
+1. Open SNS Dashboard
 2. Go to `Topics`
 3. **Create** a **new topic**
 
@@ -144,7 +149,7 @@ You should see a success message as in the screenshot below. If you get an error
 
     The new topic should have an *ARN* similar to `arn:aws:sns:us-east-1:{id}:{topic-name}`.
 
-###Link SNS topic and SQS queue
+### Link SNS topic and SQS queue
 
 1. Click on the new topic you just created
 2. **Create** a new **subcription**
@@ -156,9 +161,9 @@ These steps make sure that all notifications that are posted to this topic are p
 
 ![Topic configuration](doc/images/amazon-create-topic-for-queue.png)
 
-###Link AWS CodeCommit and SNS topic
+### Link AWS CodeCommit and SNS topic
 
-1. Go to `Services > Developer Tools > CodeCommit`
+1. Open AWS CodeCommit Dashboard
 2. Select a repository (or create a new one)
 3. Click on the repositry
 4. Go to `Triggers`
@@ -172,7 +177,7 @@ These steps make sure that all notifications that are posted to this topic are p
 
 These steps make sure that whenever someone pushes changes to this repository a message is sent to SNS. The subscription we created on the notification service makes sure the message is fordwared to the SQS queue. The Jenkins plugin uses the Amazon API to monitor this queue for new messages.
 
-###Configure jobs to use the queue on Jenkins
+### Configure jobs to use the queue on Jenkins
 
 1. Go to `Jenkins > $job`
 2. Click on `Configure`
@@ -184,13 +189,13 @@ To reduce cost the Jenkins plugin does not start monitoring a queue until at lea
 
 You can use the same queue for multiple jobs or you can create a new queue for each job. Keep in mind that monitoring multiple queues will increase the amount of requests your Jenkins will have to send to AWS. Unless you have specific needs reusing the same queue and topic for multiple jobs is completely acceptable. For billing purposes it may be easier to use multiple queues, especially if you're running builds on behalf of a customer.
 
-###Test your setup
+### Test your setup
 
 If you've set up everything correctly pushing a change to the Git repository on CodeCommit should now trigger a build on Jenkins. If nothing happens, make sure the job has been set to use messages posted to SQS as a build trigger.
 
 ![Build trigger configuration](doc/images/jenkins-build-triggers.png)
 
-#Development
+# Development
 1. Start the local Jenkins instance:
 
     mvn clean compile hpi:run
@@ -201,7 +206,7 @@ If you've set up everything correctly pushing a change to the Git repository on 
 3. Open http://localhost:8080/jenkins/ in the browser
 
 
-#License
+# License
 Apache License, Version 2.0
 ```
 Copyright 2016 M-Way Solutions GmbH
@@ -219,5 +224,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-#Maintainers
+# Maintainers
 - [Markus Pfeiffer](https://github.com/mpfeiffermway) (M-Way Solutions GmbH) – 2016
+

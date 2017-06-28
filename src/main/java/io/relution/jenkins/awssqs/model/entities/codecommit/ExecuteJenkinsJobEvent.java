@@ -1,4 +1,5 @@
 /*
+ * Copyright 2017 Ribose Inc. <https://www.ribose.com>
  * Copyright 2016 M-Way Solutions GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +21,13 @@ import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 
+/**
+ * not sure this class used for any model
+ * since there is no {@link ExecuteJenkinsJobEvent#jobName} in the Amazon SQS json response
+ *
+ * @deprecated use {@link io.relution.jenkins.awssqs.interfaces.Event} instead.
+ */
+@Deprecated
 public class ExecuteJenkinsJobEvent {
 
     @Expose

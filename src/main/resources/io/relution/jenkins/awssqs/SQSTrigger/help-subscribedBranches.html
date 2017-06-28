@@ -1,0 +1,38 @@
+<div>
+    <div>Possible options:</div>
+    <ul>
+        <li>
+            <b>&#60;branchName&#62;</b>
+            <div>
+                Tracks the specified branch. Better use <code>refs/heads/&#60;branchName&#62;</code>
+                <br/>E.g. <code>master</code> , <code>development</code>
+            </div>
+        </li>
+        <li>
+            <b>Multiple branches</b>
+            <div>
+                Tracks multiple branches in csv format
+                <br/>E.g. <code>development, master, *feature, feature/**</code>
+            </div>
+        </li>
+        <li>
+            <b>Any branch</b>
+            <div>
+                E.g. <code>**</code>
+            </div>
+        </li>
+        <li>
+            <div>
+                <b>&#60;Wildcards&#62;</b> supported like it is in <a href="http://wiki.jenkins-ci.org/display/JENKINS/Git+Plugin">Jenkins Git plugin</a>
+            </div>
+            <div>
+                <ul>
+                    <li>"*" is recognized as a wildcard</li>
+                    <li>"**" is recognized as wildcard that includes the separator '/'</li>
+                </ul>
+                <span>Therefore, origin/branches* would match <code>origin/branches-foo</code>
+                but not <code>origin/branches/foo</code>, while <code>origin/branches**</code> would match both <code>origin/branches-foo</code> and <code>origin/branches/foo</code></span>
+            </div>
+        </li>
+    </ul>
+</div>
