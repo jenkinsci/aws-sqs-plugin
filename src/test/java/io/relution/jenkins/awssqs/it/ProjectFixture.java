@@ -16,10 +16,21 @@
 
 package io.relution.jenkins.awssqs.it;
 
+import com.google.gson.FieldNamingPolicy;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 public class ProjectFixture {
+    private static final Long TIMEOUT = 36_000L;//in milliseconds, e.g: 300_000 ~ 5 mins
+
     private String listenBranches;
-    private Boolean shouldStarted;
     private String[] sendBranches;
+    private Boolean shouldStarted;
+    private Long timeout = TIMEOUT;
+
+    private static final Gson gson = new GsonBuilder()
+        .setFieldNamingStrategy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+        .create();
 
     public String getListenBranches() {
         return listenBranches;
@@ -46,5 +57,19 @@ public class ProjectFixture {
     public ProjectFixture setSendBranches(String... sendBranches) {
         this.sendBranches = sendBranches;
         return this;
+    }
+
+    public Long getTimeout() {
+        return timeout;
+    }
+
+    public ProjectFixture setTimeout(Long timeout) {
+        this.timeout = timeout;
+        return this;
+    }
+
+    @Override
+    public String toString() {
+        return gson.toJson(this);
     }
 }
