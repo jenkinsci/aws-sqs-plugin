@@ -58,7 +58,7 @@ public class SQSTriggerQueueTest {
     @Test
     public void shouldSetDefaults() {
         // Cannot mock or create an instance of final hudson.util.Secret, so null it is
-        final SQSTriggerQueue queue = new SQSTriggerQueue(null, "name", "accessKey", null, 0, 0);
+        final SQSTriggerQueue queue = new SQSTriggerQueue(null, "name", null, 0, 0);
         queue.setFactory(this.sqsFactory);
 
         assertThat(queue.getUuid()).isNotEmpty();
@@ -68,11 +68,7 @@ public class SQSTriggerQueueTest {
         assertThat(queue.getEndpoint()).isNull();
         assertThat(queue.getNameOrUrl()).isEqualTo("name");
 
-        assertThat(queue.getAccessKey()).isEqualTo("accessKey");
-        assertThat(queue.getAWSAccessKeyId()).isEqualTo("accessKey");
-
-        assertThat(queue.getSecretKey()).isNull();
-        assertThat(queue.getAWSSecretKey()).isNull();
+        assertThat(queue.getCredentialsId()).isNull();
 
         assertThat(queue.getWaitTimeSeconds()).isEqualTo(20);
         assertThat(queue.getMaxNumberOfMessages()).isEqualTo(10);
@@ -80,7 +76,7 @@ public class SQSTriggerQueueTest {
 
     @Test
     public void shouldHaveNoExplicitEndpoint() {
-        final SQSTriggerQueue queue = new SQSTriggerQueue(null, "test-queue", "accessKey", null, 0, 0);
+        final SQSTriggerQueue queue = new SQSTriggerQueue(null, "test-queue", null, 0, 0);
         queue.setFactory(this.sqsFactory);
 
         assertThat(queue.getUrl()).isEqualTo("mock://sqs.url");
@@ -94,7 +90,6 @@ public class SQSTriggerQueueTest {
         final SQSTriggerQueue queue = new SQSTriggerQueue(
                 null,
                 "https://sqs.us-east-1.amazonaws.com/929548749884/test-queue",
-                "accessKey",
                 null,
                 0,
                 0);
@@ -111,7 +106,6 @@ public class SQSTriggerQueueTest {
         final SQSTriggerQueue queue = new SQSTriggerQueue(
                 null,
                 "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/test",
-                "accessKey",
                 null,
                 0,
                 0);
