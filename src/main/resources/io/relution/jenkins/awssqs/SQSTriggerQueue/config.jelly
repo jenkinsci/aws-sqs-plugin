@@ -23,11 +23,6 @@
 	xmlns:f="/lib/form">
 	<f:section title="${%Amazon SQS queue}">
 		<f:entry
-			title="${%UUID}"
-			field="uuid">
-			<f:textbox />
-		</f:entry>
-		<f:entry
 			title="${%Queue name or URL}"
 			field="nameOrUrl">
 			<f:textbox />
@@ -47,6 +42,11 @@
 			with="uuid,nameOrUrl,accessKey,secretKey"
 			method="validate" />
 		<f:advanced title="${%Advanced}">
+			<f:entry
+				title="${%UUID}"
+				field="uuid">
+				<f:textbox />
+			</f:entry>
 			<f:entry
 				title="${%Request wait time [s]}"
 				field="waitTimeSeconds">
