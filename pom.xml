@@ -54,6 +54,16 @@
             <name>Nick Grealy</name>
             <email>nickgrealy@gmail.com</email>
         </developer>
+        <developer>
+            <id>j_vvt</id>
+            <name>Victor Timohin</name>
+            <email>vvt@opsguru.io</email>
+        </developer>
+        <developer>
+            <id>mvk</id>
+            <name>Max Kovgan</name>
+            <email>max@opsguru.io</email>
+        </developer>
     </developers>
 
     <repositories>
