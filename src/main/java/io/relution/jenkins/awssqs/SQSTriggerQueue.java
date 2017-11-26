@@ -25,6 +25,7 @@ import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
+import jenkins.model.Jenkins;
 import io.relution.jenkins.awssqs.i18n.sqstriggerqueue.Messages;
 import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -34,6 +35,7 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.List;
 
 
 public class SQSTriggerQueue extends AbstractDescribableImpl<SQSTriggerQueue> implements io.relution.jenkins.awssqs.interfaces.SQSQueue {
@@ -292,6 +294,34 @@ public class SQSTriggerQueue extends AbstractDescribableImpl<SQSTriggerQueue> im
                 return FormValidation.error(Messages.errorUrlUnknown());
             }
 
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckUuid(@QueryParameter final String value) {
+            if (StringUtils.isBlank(value)) {
+                return FormValidation.ok();
+            }
+
+            final Jenkins Jinstance = Jenkins.getInstance();
+            if (Jinstance == null) {
+                return FormValidation.ok();
+            }
+
+            final SQSTrigger.DescriptorImpl Cdescriptor = (SQSTrigger.DescriptorImpl) Jinstance.getDescriptor(SQSTrigger.class);
+            if (Cdescriptor == null) {
+                return FormValidation.ok();
+            }
+
+            final List<SQSTriggerQueue> qlist = Cdescriptor.getSqsQueues();
+            if (qlist == null) {
+                return FormValidation.ok();
+            }
+
+            for (SQSTriggerQueue entry : qlist) {
+                if(entry.getUuid().equals(value)) {
+                    return FormValidation.error(Messages.errorUuid());
+                }
+            }
             return FormValidation.ok();
         }
 
