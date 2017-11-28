@@ -9,7 +9,7 @@ buildPlugin(
     ],
     jenkinsVersions: [
         '1.651.2',
-        '2.63'
+        // '2.63'
     ],
     findbugs: [
         run: false
