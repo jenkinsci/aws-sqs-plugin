@@ -64,7 +64,7 @@ After you've successfully installed the plugin you should see a new entry in you
 5. **Create** a **new user** called *Jenkins*
 6. Assign the *Jenkins* user to the *Jenkins* group
 7. Go to `IAM > Users > Jenkins > Security Credentials`
-8. **Create** a new **Access Key** for the Jenins user
+8. **Create** a new **Access Key** for the Jenkins user
 
     **Important:** You will need the `Access Key ID` and `Secret Key` for Jenkins to be able to access the SQS queue. Make sure to save both values in a secure place.
 
@@ -118,7 +118,13 @@ You should now be able to clone the repository and start working with it. The re
 
 3. Copy the *ARN* of the queue for later
 
-###Test whether Jenkins can access the queue
+### Create a Jenkins credentials object
+
+Amazon SQS queue use text security credentials pair Access key ID and Access key secret. You can use the pair previously created as described in section **Create a Jenkins user on AWS**. You have to put AWS SQS credentials pair into **Secret text** kind of Jenkins credentials store object, Access key ID as ID and Access key secret as Secret. AWS-SQS-plugin use plain text credentials and only this kind of credentials objects are visible for the plugin.
+
+**Note:** The Credentials drop down list will show You the Description You wrote to Jenkins credentials store object.
+
+### Test whether Jenkins can access the queue
 
 1. Go to `Jenkins > Manage Jenkins > Configure System` on your Jenkins
 
@@ -127,8 +133,7 @@ You should now be able to clone the repository and start working with it. The re
 3. Configure a queue
 
     * Enter the name of the queue you just created
-    * Enter the *Access key ID* of the Jenkins user on AWS
-    * Enter the *Secret key* of the Jenkins user on AWS
+    * Select the appropriate *Credentials* of the Jenkins user on AWS from drop-down list
 
 4. Click on **Test access**
 
@@ -243,3 +248,5 @@ limitations under the License.
 # Maintainers
 - [Markus Pfeiffer](https://github.com/mpfeiffermway) (M-Way Solutions GmbH) – 2016
 - [Nick Grealy](nickgrealy@gmail.com)
+- [Victor Timohin](vvt@opsguru.io)
+- [Max Kovgan](max@opsguru.io)
