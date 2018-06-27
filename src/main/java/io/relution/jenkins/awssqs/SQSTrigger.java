@@ -68,6 +68,7 @@ import static io.relution.jenkins.awssqs.util.JobInfoHelpers.asParameterizedJobM
 public class SQSTrigger extends Trigger<Job<?, ?>> implements io.relution.jenkins.awssqs.interfaces.SQSQueueListener, Runnable {
 
     private final String queueUuid;
+    private final String filterString;
 
     private transient SQSQueueMonitorScheduler scheduler;
 
@@ -77,8 +78,9 @@ public class SQSTrigger extends Trigger<Job<?, ?>> implements io.relution.jenkin
     private transient ExecutorService executor;
 
     @DataBoundConstructor
-    public SQSTrigger(final String queueUuid) {
+    public SQSTrigger(final String queueUuid, String filterString) {
         this.queueUuid = queueUuid;
+        this.filterString = filterString;
     }
 
     public File getLogFile() {
@@ -142,6 +144,9 @@ public class SQSTrigger extends Trigger<Job<?, ?>> implements io.relution.jenkin
         return this.queueUuid;
     }
 
+    @Override
+    public String getFilterString() { return this.filterString; }
+
     @Inject
     public void setScheduler(final SQSQueueMonitorScheduler scheduler) {
         this.scheduler = scheduler;
@@ -190,6 +195,13 @@ public class SQSTrigger extends Trigger<Job<?, ?>> implements io.relution.jenkin
         return this.executor;
     }
 
+    private boolean shouldAllowBuild(final Message message) {
+        return this.filterString == null
+                || this.filterString.isEmpty()
+                || this.filterString.equals("*")
+                || message.getBody().contains(this.filterString);
+    }
+
     private void handleMessage(final Message message) {
         Log.info("Message received...");
         Map<String, String> jobParams = new HashMap<>();
@@ -204,18 +216,13 @@ public class SQSTrigger extends Trigger<Job<?, ?>> implements io.relution.jenkin
         jobParams.put("sqs_messageId", message.getMessageId());
         jobParams.put("sqs_receiptHandle", message.getReceiptHandle());
         jobParams.put("sqs_bodyMD5", message.getMD5OfBody());
-        startJob(jobParams);
 
-//        final MessageParser parser = this.messageParserFactory.createParser(message);
-//        final EventTriggerMatcher matcher = this.getEventTriggerMatcher();
-//        final List<ExecuteJenkinsJobEvent> events = parser.parseMessage(message);
-//
-//        if (matcher.matches(events, this.job)) {
-//            this.execute();
-//        }else{
-//            Log.info("Executing handleMessage when no event is matched");
-//            this.execute();
-//        }
+        if(!shouldAllowBuild(message)) {
+            Log.info("Stopping build because filter '%s' does not match '%s' (%s)", this.filterString, message.getBody(), this.job.getName());
+            return;
+        }
+
+        startJob(jobParams);
     }
 
     private void startJob(Map<String, String> jobParameters) {

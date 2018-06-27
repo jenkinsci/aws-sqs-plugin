@@ -26,4 +26,9 @@
 		field="queueUuid">
 		<f:select />
 	</f:entry>
+	<f:entry
+		title="${%SQS message filter}"
+		field="filterString">
+		<f:textbox default="*" />
+	</f:entry>
 </j:jelly>

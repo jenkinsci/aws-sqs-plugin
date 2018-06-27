@@ -35,6 +35,13 @@ public interface SQSQueueListener {
     String getQueueUuid();
 
     /**
+     * The filter string of an build trigger that can be used to filter incoming messages and
+     * conditionally trigger builds.
+     * @return The string used to filter incoming message bodies. An empty value or '*' are treated as wildcards.
+     */
+    String getFilterString();
+
+    /**
      * The method to be invoked when new messages arrive in the SQS queue this listener is
      * associated with.
      * @param messages The collection of {@link Message} instances that were posted to the queue.
