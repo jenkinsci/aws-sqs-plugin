@@ -147,6 +147,15 @@ public class SQSTrigger extends Trigger<Job<?, ?>> implements io.relution.jenkin
     @Override
     public String getFilterString() { return this.filterString; }
 
+    private String getJobName() {
+        String jobName = "Unknown Job";
+
+        if (this.job != null)
+            jobName = this.job.getName();
+
+        return jobName;
+    }
+
     @Inject
     public void setScheduler(final SQSQueueMonitorScheduler scheduler) {
         this.scheduler = scheduler;
@@ -218,7 +227,10 @@ public class SQSTrigger extends Trigger<Job<?, ?>> implements io.relution.jenkin
         jobParams.put("sqs_bodyMD5", message.getMD5OfBody());
 
         if(!shouldAllowBuild(message)) {
-            Log.info("Stopping build because filter '%s' does not match '%s' (%s)", this.filterString, message.getBody(), this.job.getName());
+            Log.info("Stopping build because filter '%s' does not match '%s' (%s)",
+                    this.filterString,
+                    message.getBody(),
+                    this.getJobName());
             return;
         }
 
