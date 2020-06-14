@@ -50,6 +50,7 @@
         <maven-surefire-plugin.version>2.19.1</maven-surefire-plugin.version>
         <animal-sniffer-maven-plugin.version>1.16</animal-sniffer-maven-plugin.version>
         <java18.version>1.0</java18.version>
+        <findbugs.version>3.0.4</findbugs.version>
     </properties>
 
     <licenses>
@@ -195,6 +196,12 @@
                         <version>${java18.version}</version>
                     </signature>
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>findbugs-maven-plugin</artifactId>
+                <version>${findbugs.version}</version>
             </plugin>
 
         </plugins>
