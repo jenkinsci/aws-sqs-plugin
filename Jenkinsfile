@@ -9,9 +9,5 @@ buildPlugin(
     ],
     jenkinsVersions: [
         '2.63'
-    ],
-    findbugs: [
-        run: false
-    ],
-    failFast: true
+    ]
 )
