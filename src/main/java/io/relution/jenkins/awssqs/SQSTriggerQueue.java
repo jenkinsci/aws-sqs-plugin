@@ -62,7 +62,7 @@ public class SQSTriggerQueue extends AbstractDescribableImpl<SQSTriggerQueue> im
     private static final int MAX_NUMBER_OF_MESSAGES_DEFAULT = 10;
     private static final int MAX_NUMBER_OF_MESSAGES_MIN = 1;
     private static final int MAX_NUMBER_OF_MESSAGES_MAX = 10;
-    
+
     private static final int MAX_NUMBER_OF_JOB_QUEUE_MIN = 0;
     private static final int MAX_NUMBER_OF_JOB_QUEUE_MAX = 100000;
     private static final int MAX_NUMBER_OF_JOB_QUEUE_DEFAULT = 1000;
@@ -139,7 +139,7 @@ public class SQSTriggerQueue extends AbstractDescribableImpl<SQSTriggerQueue> im
                 MAX_NUMBER_OF_MESSAGES_MIN,
                 MAX_NUMBER_OF_MESSAGES_MAX,
                 MAX_NUMBER_OF_MESSAGES_DEFAULT);
-        
+
         this.maxNumberOfJobQueue = this.limit(
                 maxNumberOfJobQueue,
                 MAX_NUMBER_OF_JOB_QUEUE_MIN,
@@ -530,7 +530,7 @@ public class SQSTriggerQueue extends AbstractDescribableImpl<SQSTriggerQueue> im
 
                 final String url = result.getQueueUrl();
                 if ((credentialsId == null) || credentialsId.isEmpty())    {
-                    return FormValidation.error("No credentials set");
+                    return FormValidation.ok("Access to %s successful\n(%s)", queue.getName(), url);
                 } else {
                     return FormValidation.ok("Access to %s successful\n(%s),\ncredentials store ID=(%s)",
                         queue.getName(), url, queue.getCredentialsId());
