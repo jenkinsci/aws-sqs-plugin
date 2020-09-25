@@ -246,9 +246,13 @@ public class SQSTrigger extends Trigger<Job<?, ?>> implements io.relution.jenkin
         TriggerDescriptor descriptor = this.getDescriptor();
         if (descriptor instanceof DescriptorImpl) {
             DescriptorImpl impl = (DescriptorImpl) descriptor;
-            List<io.relution.jenkins.awssqs.SQSTriggerQueue> queues = impl.getSqsQueues();
-            if (!queues.isEmpty()) {
-                cause = new Cause.RemoteCause(queues.get(0).getUrl(), "Job triggered by AWS SQS Message");
+            SQSTriggerQueue queue = impl.getSqsQueues()
+                    .stream()
+                    .filter(q -> q.getUuid().equals(getQueueUuid()))
+                    .findFirst()
+                    .orElse(null);
+            if (null != queue) {
+                cause = new Cause.RemoteCause(queue.getNameOrUrl(), "Job triggered by AWS SQS Message");
             }
         }
 
