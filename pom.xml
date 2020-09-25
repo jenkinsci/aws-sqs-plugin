@@ -42,6 +42,7 @@
         <multiple-scms.version>0.6</multiple-scms.version>
         <commons-lang3.version>3.7</commons-lang3.version>
         <plain-credentials.version>1.4</plain-credentials.version>
+        <joda-time.version>2.10.5</joda-time.version>
         <htmlunit.version>2.20</htmlunit.version>
         <mockito-core.version>2.12.0</mockito-core.version>
         <assertj-core.version>3.8.0</assertj-core.version>
@@ -140,6 +141,12 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>plain-credentials</artifactId>
             <version>${plain-credentials.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>${joda-time.version}</version>
         </dependency>
 
         <dependency>
